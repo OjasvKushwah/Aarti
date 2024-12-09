@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Prayer Audio Player</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 20px;
+        }
+        #playButton {
+            font-size: 18px;
+            padding: 10px 20px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <h1>Prayer Audio Player</h1>
+    <button id="playButton">Play Prayers</button>
+
+    <div id="audioControls" style="display:none;">
+        <audio id="aartiAudio" src="aarti.mp3"></audio>
+        <audio id="chalisaAudio" src="chalisa.mp3"></audio>
+        <audio id="saiAudio" src="Sai.mp3"></audio>
+    </div>
+
+    <script>
+        // Get references to elements
+        const playButton = document.getElementById('playButton');
+        const aartiAudio = document.getElementById('aartiAudio');
+        const chalisaAudio = document.getElementById('chalisaAudio');
+        const saiAudio = document.getElementById('saiAudio');
+
+        // Function to play audio files in sequence
+        function playPrayers() {
+            // Disable the play button while playing
+            playButton.disabled = true;
+            playButton.textContent = 'Playing...';
+
+            // Play aarti first
+            aartiAudio.play();
+
+            // When aarti ends, play chalisa
+            aartiAudio.onended = function() {
+                chalisaAudio.play();
+
+                // When chalisa ends, check if it's Thursday
+                chalisaAudio.onended = function() {
+                    const today = new Date();
+                    if (today.getDay() === 4) { // 4 represents Thursday
+                        saiAudio.play();
+                        
+                        // Re-enable button when Sai audio ends
+                        saiAudio.onended = resetButton;
+                    } else {
+                        // Re-enable button if Sai audio doesn't play
+                        resetButton();
+                    }
+                };
+            };
+        }
+
+        // Function to reset the play button
+        function resetButton() {
+            playButton.disabled = false;
+            playButton.textContent = 'Play Prayers';
+        }
+
+        // Add click event listener to play button
+        playButton.addEventListener('click', playPrayers);
+    </script>
+</body>
+</html>
