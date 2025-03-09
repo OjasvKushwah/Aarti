@@ -10,22 +10,40 @@
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f5f5f5;
+            background: linear-gradient(135deg, #f5f7fa 0%, #e4e9f2 100%);
             color: #333;
             text-align: center;
             padding: 20px;
-            max-width: 800px;
-            margin: 0 auto;
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         .container {
             background-color: white;
-            border-radius: 10px;
-            padding: 20px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 500px;
+            position: relative;
+            overflow: hidden;
+        }
+        .container::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 10px;
+            background: linear-gradient(90deg, #a1887f, #8d6e63, #6d4c41);
         }
         h1 {
             color: #5d4037;
             margin-bottom: 30px;
+            font-size: 28px;
+            font-weight: 700;
         }
         .player-wrapper {
             margin: 30px 0;
@@ -34,7 +52,7 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            gap: 20px;
+            gap: 30px;
             margin-bottom: 20px;
         }
         button {
@@ -45,42 +63,61 @@
             padding: 12px 24px;
             font-size: 16px;
             cursor: pointer;
-            transition: background-color 0.3s;
+            transition: all 0.3s;
             outline: none;
+            box-shadow: 0 4px 8px rgba(141, 110, 99, 0.2);
         }
         button:hover {
             background-color: #6d4c41;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(141, 110, 99, 0.3);
+        }
+        button:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 4px rgba(141, 110, 99, 0.2);
         }
         button:disabled {
             background-color: #bcaaa4;
             cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
         }
         button.control-btn {
-            width: 60px;
-            height: 60px;
+            width: 70px;
+            height: 70px;
             border-radius: 50%;
             display: flex;
             justify-content: center;
             align-items: center;
             font-size: 24px;
         }
+        button#playPauseButton {
+            width: 80px;
+            height: 80px;
+            font-size: 28px;
+            background-color: #6d4c41;
+        }
+        button#playPauseButton:hover {
+            background-color: #5d4037;
+        }
         .progress-container {
             width: 100%;
             background-color: #e0e0e0;
-            border-radius: 5px;
+            border-radius: 10px;
             margin: 15px 0;
             position: relative;
             height: 8px;
+            overflow: hidden;
         }
         .progress-bar {
             width: 0;
             height: 100%;
-            background-color: #8d6e63;
-            border-radius: 5px;
+            background: linear-gradient(90deg, #8d6e63, #6d4c41);
+            border-radius: 10px;
             transition: width 0.1s;
         }
         .now-playing {
-            font-size: 18px;
+            font-size: 20px;
             margin-bottom: 10px;
             font-weight: 500;
             color: #5d4037;
@@ -93,40 +130,41 @@
         .playlist {
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 12px;
             margin-top: 30px;
             text-align: left;
-            padding: 0 20px;
+            padding: 0;
         }
         .playlist-item {
-            padding: 10px;
-            background-color: #f5f5f5;
-            border-radius: 5px;
+            padding: 15px;
+            background-color: #f9f9f9;
+            border-radius: 12px;
             display: flex;
             align-items: center;
-            transition: background-color 0.3s;
+            transition: all 0.3s;
+            border-left: 4px solid transparent;
         }
         .playlist-item.active {
-            background-color: #e6d7d0;
+            background-color: #efe6e2;
+            border-left: 4px solid #8d6e63;
+            transform: translateX(5px);
         }
         .playlist-item:hover {
-            background-color: #eee;
+            background-color: #f0f0f0;
             cursor: pointer;
-        }
-        .playlist-item-icon {
-            margin-right: 15px;
-            font-size: 20px;
-            color: #8d6e63;
+            transform: translateX(5px);
         }
         .status-icon {
-            width: 10px;
-            height: 10px;
+            width: 12px;
+            height: 12px;
             border-radius: 50%;
-            background-color: #bdbdbd;
+            background-color: #e0e0e0;
             margin-right: 15px;
+            transition: all 0.3s;
         }
         .status-icon.current {
             background-color: #8d6e63;
+            box-shadow: 0 0 0 3px rgba(141, 110, 99, 0.2);
         }
         .status-icon.played {
             background-color: #a5d6a7;
@@ -138,8 +176,8 @@
             margin-top: 5px;
         }
         .install-prompt {
-            background-color: #f5f5f5;
-            border-radius: 10px;
+            background-color: #f9f9f9;
+            border-radius: 12px;
             padding: 15px;
             margin: 20px 0;
             border: 1px solid #e0e0e0;
@@ -153,28 +191,19 @@
             background-color: #4caf50;
             color: white;
             text-align: center;
-            padding: 5px;
+            padding: 8px;
             font-size: 14px;
             z-index: 1000;
-            transition: background-color 0.3s;
+            transition: all 0.3s;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
         .offline {
             background-color: #ff9800;
         }
-        .volume-control {
-            display: flex;
-            align-items: center;
-            margin: 15px 0;
-            justify-content: center;
-        }
-        .volume-control input {
-            width: 150px;
-            margin: 0 10px;
-        }
         .spinner {
             display: inline-block;
-            width: 20px;
-            height: 20px;
+            width: 24px;
+            height: 24px;
             border: 3px solid rgba(255,255,255,.3);
             border-radius: 50%;
             border-top-color: #fff;
@@ -186,6 +215,16 @@
         .loading-indicator {
             margin-right: 10px;
             display: none;
+        }
+        .playlist-item div h3 {
+            margin: 0 0 5px 0;
+            font-size: 16px;
+            color: #5d4037;
+        }
+        .playlist-item div p {
+            margin: 0;
+            font-size: 13px;
+            color: #757575;
         }
     </style>
 </head>
@@ -221,12 +260,6 @@
             
             <div class="time-display">
                 <span id="currentTime">0:00</span> / <span id="totalTime">0:00</span>
-            </div>
-            
-            <div class="volume-control">
-                <span>🔈</span>
-                <input type="range" id="volumeControl" min="0" max="1" step="0.01" value="1">
-                <span>🔊</span>
             </div>
         </div>
         
@@ -294,14 +327,14 @@
         const currentTimeDisplay = document.getElementById('currentTime');
         const totalTimeDisplay = document.getElementById('totalTime');
         const playlistItems = document.querySelectorAll('.playlist-item');
-        const volumeControl = document.getElementById('volumeControl');
+        const playlist = document.getElementById('playlist');
 
         // State
-        let playlist = ['aarti', 'chalisa'];
+        let tracksList = ['aarti', 'chalisa'];
         // Add Sai prayer for Thursdays
         const today = new Date();
         if (today.getDay() === 4) { // 4 represents Thursday
-            playlist.push('sai');
+            tracksList.push('sai');
         }
         
         let currentTrackIndex = -1;
@@ -309,7 +342,11 @@
         let isPlaying = false;
         let isLoading = false;
         let cachedAudios = {};
-        let volume = 1;
+
+        // Show notification function
+        function showNotification(message) {
+            alert(message);
+        }
 
         // Listen for beforeinstallprompt event
         window.addEventListener('beforeinstallprompt', (e) => {
@@ -364,13 +401,13 @@
 
         // Update UI based on current track
         function updateUI() {
-            if (currentTrackIndex >= 0 && currentTrackIndex < playlist.length) {
-                const currentTrack = playlist[currentTrackIndex];
+            if (currentTrackIndex >= 0 && currentTrackIndex < tracksList.length) {
+                const currentTrack = tracksList[currentTrackIndex];
                 nowPlaying.textContent = `Now Playing: ${audioFiles[currentTrack].name}`;
                 
                 // Update next up
-                if (currentTrackIndex < playlist.length - 1) {
-                    const nextTrack = playlist[currentTrackIndex + 1];
+                if (currentTrackIndex < tracksList.length - 1) {
+                    const nextTrack = tracksList[currentTrackIndex + 1];
                     nextUp.textContent = `Next: ${audioFiles[nextTrack].name}`;
                 } else {
                     nextUp.textContent = 'End of playlist';
@@ -381,8 +418,8 @@
                     icon.className = 'status-icon';
                 });
                 
-                for (let i = 0; i < playlist.length; i++) {
-                    const itemId = `${playlist[i]}Status`;
+                for (let i = 0; i < tracksList.length; i++) {
+                    const itemId = `${tracksList[i]}Status`;
                     const statusIcon = document.getElementById(itemId);
                     
                     if (i === currentTrackIndex) {
@@ -402,7 +439,7 @@
                 
                 // Update prev/next buttons
                 prevButton.disabled = currentTrackIndex <= 0;
-                nextButton.disabled = currentTrackIndex >= playlist.length - 1;
+                nextButton.disabled = currentTrackIndex >= tracksList.length - 1;
                 
                 // Update play/pause button
                 playPauseIcon.textContent = isPlaying ? '❚❚' : '▶';
@@ -462,7 +499,7 @@
             }
             
             currentTrackIndex = index;
-            const trackId = playlist[currentTrackIndex];
+            const trackId = tracksList[currentTrackIndex];
             
             try {
                 isLoading = true;
@@ -471,15 +508,12 @@
                 // Load and cache the audio
                 currentAudio = await loadAudio(trackId);
                 
-                // Apply volume setting
-                currentAudio.volume = volume;
-                
                 // Set up time update event
                 currentAudio.addEventListener('timeupdate', updateProgress);
                 
                 // Set up ended event
                 currentAudio.addEventListener('ended', () => {
-                    if (currentTrackIndex < playlist.length - 1) {
+                    if (currentTrackIndex < tracksList.length - 1) {
                         playTrack(currentTrackIndex + 1);
                     } else {
                         currentAudio = null;
@@ -523,37 +557,4 @@
             if (currentAudio && currentAudio.duration) {
                 const percentage = (currentAudio.currentTime / currentAudio.duration) * 100;
                 progressBar.style.width = `${percentage}%`;
-                currentTimeDisplay.textContent = formatTime(currentAudio.currentTime);
-            }
-        }
-
-        // Toggle play/pause
-        function togglePlayPause() {
-            if (isLoading) return; // Don't do anything while loading
-            
-            if (!currentAudio && currentTrackIndex === -1 && playlist.length > 0) {
-                // Start playing from first track
-                playTrack(0);
-                return;
-            }
-            
-            if (isPlaying) {
-                currentAudio.pause();
-                isPlaying = false;
-            } else if (currentAudio) {
-                currentAudio.play()
-                    .catch(error => {
-                        console.error("Error playing audio:", error);
-                        showNotification("Playback failed. Try interacting with the page first.");
-                    });
-                isPlaying = true;
-            }
-            
-            updateUI();
-        }
-
-        // Play next track
-        function playNext() {
-            if (isLoading) return; // Don't do anything while loading
-            
-            if (currentTrackIndex < p
+        
