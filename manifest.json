@@ -1,10 +1,10 @@
 {
-  "name": "Prayer Audio Player",
-  "short_name": "Prayers",
-  "description": "Listen to your daily prayers online or offline",
-  "start_url": "index.html",
+  "name": "Sacred Sound",
+  "short_name": "Sacred",
+  "description": "Prayer Audio Player - Listen to your prayers offline",
+  "start_url": "/index.html",
   "display": "standalone",
-  "background_color": "#f5f5f5",
+  "background_color": "#f8f9fa",
   "theme_color": "#8d6e63",
   "icons": [
     {
