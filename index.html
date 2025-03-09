@@ -108,6 +108,7 @@
             position: relative;
             height: 8px;
             overflow: hidden;
+            cursor: pointer;
         }
         .progress-bar {
             width: 0;
@@ -254,7 +255,7 @@
                 <button class="control-btn" id="nextButton" disabled>⏭</button>
             </div>
             
-            <div class="progress-container">
+            <div class="progress-container" id="progressContainer">
                 <div class="progress-bar" id="progressBar"></div>
             </div>
             
@@ -289,27 +290,6 @@
     </div>
     
     <script>
-        // Register service worker for offline capability
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('sw.js')
-                    .then(registration => {
-                        console.log('ServiceWorker registration successful with scope: ', registration.scope);
-                    })
-                    .catch(error => {
-                        console.log('ServiceWorker registration failed: ', error);
-                    });
-            });
-        }
-
-        // Variables for install prompt
-        let deferredPrompt;
-        const installPrompt = document.getElementById('installPrompt');
-        const installButton = document.getElementById('installButton');
-        const connectionStatus = document.getElementById('connectionStatus');
-        const loadingIndicator = document.getElementById('loadingIndicator');
-        const playPauseIcon = document.getElementById('playPauseIcon');
-
         // Audio files info
         const audioFiles = {
             aarti: { src: 'aarti.mp3', name: 'Aarti', description: 'Morning prayer' },
@@ -317,81 +297,40 @@
             sai: { src: 'sai.mp3', name: 'Sai Prayer', description: 'Thursday special prayer' }
         };
 
-        // Elements
-        const playPauseButton = document.getElementById('playPauseButton');
-        const prevButton = document.getElementById('prevButton');
-        const nextButton = document.getElementById('nextButton');
-        const progressBar = document.getElementById('progressBar');
-        const nowPlaying = document.getElementById('nowPlaying');
-        const nextUp = document.getElementById('nextUp');
-        const currentTimeDisplay = document.getElementById('currentTime');
-        const totalTimeDisplay = document.getElementById('totalTime');
-        const playlistItems = document.querySelectorAll('.playlist-item');
-        const playlist = document.getElementById('playlist');
-
-        // State
+        // Main state and DOM elements
         let tracksList = ['aarti', 'chalisa'];
-        // Add Sai prayer for Thursdays
-        const today = new Date();
-        if (today.getDay() === 4) { // 4 represents Thursday
-            tracksList.push('sai');
-        }
+        if (new Date().getDay() === 4) tracksList.push('sai'); // Add Sai prayer on Thursdays
         
         let currentTrackIndex = -1;
         let currentAudio = null;
         let isPlaying = false;
         let isLoading = false;
-        let cachedAudios = {};
-
-        // Show notification function
-        function showNotification(message) {
-            alert(message);
-        }
-
-        // Listen for beforeinstallprompt event
-        window.addEventListener('beforeinstallprompt', (e) => {
-            // Prevent Chrome 67 and earlier from automatically showing the prompt
-            e.preventDefault();
-            // Stash the event so it can be triggered later
-            deferredPrompt = e;
-            // Show the install button
-            installPrompt.style.display = 'block';
-        });
-
-        // Handle install button click
-        installButton.addEventListener('click', async () => {
-            if (deferredPrompt) {
-                // Show the install prompt
-                deferredPrompt.prompt();
-                // Wait for the user to respond to the prompt
-                const { outcome } = await deferredPrompt.userChoice;
-                console.log(`User response to the install prompt: ${outcome}`);
-                // Clear the saved prompt since it can't be used again
-                deferredPrompt = null;
-                // Hide our install button
-                installPrompt.style.display = 'none';
-            }
-        });
-
-        // Check online status and update UI
-        function updateOnlineStatus() {
-            if (navigator.onLine) {
-                connectionStatus.textContent = 'Online';
-                connectionStatus.classList.remove('offline');
-            } else {
-                connectionStatus.textContent = 'Offline - Using Cached Content';
-                connectionStatus.classList.add('offline');
-            }
-        }
-
-        // Add online/offline event listeners
-        window.addEventListener('online', updateOnlineStatus);
-        window.addEventListener('offline', updateOnlineStatus);
         
-        // Initial online status check
-        updateOnlineStatus();
+        const playPauseButton = document.getElementById('playPauseButton');
+        const prevButton = document.getElementById('prevButton');
+        const nextButton = document.getElementById('nextButton');
+        const progressBar = document.getElementById('progressBar');
+        const progressContainer = document.getElementById('progressContainer');
+        const nowPlaying = document.getElementById('nowPlaying');
+        const nextUp = document.getElementById('nextUp');
+        const currentTimeDisplay = document.getElementById('currentTime');
+        const totalTimeDisplay = document.getElementById('totalTime');
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const playPauseIcon = document.getElementById('playPauseIcon');
+        const connectionStatus = document.getElementById('connectionStatus');
+        const installPrompt = document.getElementById('installPrompt');
+        const installButton = document.getElementById('installButton');
+        
+        // Service worker registration
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js').catch(error => {
+                    console.log('ServiceWorker registration failed: ', error);
+                });
+            });
+        }
 
-        // Function to format time in mm:ss
+        // Format time in mm:ss format
         function formatTime(seconds) {
             if (isNaN(seconds)) return "0:00";
             const mins = Math.floor(seconds / 60);
@@ -399,7 +338,7 @@
             return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
         }
 
-        // Update UI based on current track
+        // Update the player UI based on current state
         function updateUI() {
             if (currentTrackIndex >= 0 && currentTrackIndex < tracksList.length) {
                 const currentTrack = tracksList[currentTrackIndex];
@@ -413,148 +352,206 @@
                     nextUp.textContent = 'End of playlist';
                 }
                 
-                // Update playlist status icons
+                // Update status icons and active states
                 document.querySelectorAll('.status-icon').forEach(icon => {
                     icon.className = 'status-icon';
+                });
+                
+                document.querySelectorAll('.playlist-item').forEach(item => {
+                    item.classList.remove('active');
                 });
                 
                 for (let i = 0; i < tracksList.length; i++) {
                     const itemId = `${tracksList[i]}Status`;
                     const statusIcon = document.getElementById(itemId);
                     
-                    if (i === currentTrackIndex) {
-                        statusIcon.classList.add('current');
-                    } else if (i < currentTrackIndex) {
-                        statusIcon.classList.add('played');
+                    if (statusIcon) {
+                        if (i === currentTrackIndex) {
+                            statusIcon.classList.add('current');
+                            document.querySelector(`.playlist-item[data-audio="${tracksList[i]}"]`).classList.add('active');
+                        } else if (i < currentTrackIndex) {
+                            statusIcon.classList.add('played');
+                        }
                     }
                 }
                 
-                // Update playlist items
-                playlistItems.forEach(item => {
-                    item.classList.remove('active');
-                    if (item.dataset.audio === currentTrack) {
-                        item.classList.add('active');
-                    }
-                });
-                
-                // Update prev/next buttons
+                // Update buttons
                 prevButton.disabled = currentTrackIndex <= 0;
                 nextButton.disabled = currentTrackIndex >= tracksList.length - 1;
                 
-                // Update play/pause button
-                playPauseIcon.textContent = isPlaying ? '❚❚' : '▶';
-                
-                // Update loading indicator
+                // Show loading or play/pause
                 if (isLoading) {
                     loadingIndicator.style.display = 'inline-block';
                     playPauseIcon.style.display = 'none';
                 } else {
                     loadingIndicator.style.display = 'none';
                     playPauseIcon.style.display = 'inline-block';
+                    playPauseIcon.textContent = isPlaying ? '❚❚' : '▶';
                 }
+            } else {
+                // Reset UI when no track is selected
+                nowPlaying.textContent = 'Select a prayer to begin';
+                nextUp.textContent = '';
+                prevButton.disabled = true;
+                nextButton.disabled = true;
+                playPauseIcon.textContent = '▶';
+                
+                document.querySelectorAll('.status-icon').forEach(icon => {
+                    icon.className = 'status-icon';
+                });
+                
+                document.querySelectorAll('.playlist-item').forEach(item => {
+                    item.classList.remove('active');
+                });
             }
         }
 
-        // Load and cache audio file
-        function loadAudio(trackId) {
-            return new Promise((resolve, reject) => {
-                if (cachedAudios[trackId]) {
-                    resolve(cachedAudios[trackId]);
-                    return;
-                }
-                
-                isLoading = true;
-                updateUI();
-                
-                const audio = new Audio();
-                audio.src = audioFiles[trackId].src;
-                
-                // Cache the audio in memory
-                audio.addEventListener('canplaythrough', () => {
-                    cachedAudios[trackId] = audio;
-                    isLoading = false;
-                    updateUI();
-                    resolve(audio);
-                }, { once: true });
-                
-                audio.addEventListener('error', (e) => {
-                    isLoading = false;
-                    updateUI();
-                    reject(`Error loading audio: ${e.message}`);
-                });
-                
-                // Start loading
-                audio.load();
-            });
-        }
-
-        // Play a track
-        async function playTrack(index) {
-            // Stop current audio if playing
+        // Play a track by index
+        function playTrack(index) {
+            // Stop current track if playing
             if (currentAudio) {
                 currentAudio.pause();
                 currentAudio.currentTime = 0;
-                // Remove previous event listeners to prevent memory leaks
-                currentAudio.removeEventListener('timeupdate', updateProgress);
             }
             
             currentTrackIndex = index;
             const trackId = tracksList[currentTrackIndex];
             
-            try {
-                isLoading = true;
+            isLoading = true;
+            updateUI();
+            
+            // Create a new audio element
+            currentAudio = new Audio(audioFiles[trackId].src);
+            
+            // Set up event listeners
+            currentAudio.addEventListener('canplay', () => {
+                isLoading = false;
+                if (!isNaN(currentAudio.duration)) {
+                    totalTimeDisplay.textContent = formatTime(currentAudio.duration);
+                }
                 updateUI();
                 
-                // Load and cache the audio
-                currentAudio = await loadAudio(trackId);
-                
-                // Set up time update event
-                currentAudio.addEventListener('timeupdate', updateProgress);
-                
-                // Set up ended event
-                currentAudio.addEventListener('ended', () => {
-                    if (currentTrackIndex < tracksList.length - 1) {
-                        playTrack(currentTrackIndex + 1);
-                    } else {
-                        currentAudio = null;
-                        currentTrackIndex = -1;
+                // Start playing
+                currentAudio.play()
+                    .then(() => {
+                        isPlaying = true;
+                        updateUI();
+                    })
+                    .catch(error => {
+                        console.error("Error playing audio:", error);
+                        alert("Playback failed. Try interacting with the page first.");
                         isPlaying = false;
                         updateUI();
-                    }
-                });
-                
-                // Update total time display
-                if (currentAudio.duration && !isNaN(currentAudio.duration)) {
-                    totalTimeDisplay.textContent = formatTime(currentAudio.duration);
-                } else {
-                    // If duration is not available yet, set up a listener
-                    currentAudio.addEventListener('durationchange', () => {
-                        totalTimeDisplay.textContent = formatTime(currentAudio.duration);
                     });
+            });
+            
+            currentAudio.addEventListener('timeupdate', () => {
+                if (currentAudio.duration) {
+                    const percentage = (currentAudio.currentTime / currentAudio.duration) * 100;
+                    progressBar.style.width = `${percentage}%`;
+                    currentTimeDisplay.textContent = formatTime(currentAudio.currentTime);
                 }
-                
-                // Play the audio
-                try {
-                    await currentAudio.play();
-                    isPlaying = true;
-                } catch (playError) {
-                    console.error("Error playing audio:", playError);
-                    showNotification("Playback failed. Try interacting with the page first.");
+            });
+            
+            currentAudio.addEventListener('ended', () => {
+                // Play next track if available
+                if (currentTrackIndex < tracksList.length - 1) {
+                    playTrack(currentTrackIndex + 1);
+                } else {
+                    // Reset at end of playlist
+                    currentAudio = null;
+                    currentTrackIndex = -1;
+                    isPlaying = false;
+                    progressBar.style.width = '0%';
+                    currentTimeDisplay.textContent = '0:00';
+                    totalTimeDisplay.textContent = '0:00';
+                    updateUI();
                 }
-                
+            });
+            
+            currentAudio.addEventListener('error', (e) => {
+                console.error("Audio error:", e);
+                alert(`Error loading ${audioFiles[trackId].name}. Please check if the audio file exists.`);
                 isLoading = false;
+                isPlaying = false;
                 updateUI();
-            } catch (error) {
-                console.error(error);
-                nowPlaying.textContent = `Error: Could not load ${audioFiles[trackId].name}`;
-                isLoading = false;
+            });
+            
+            // Start loading the audio
+            currentAudio.load();
+        }
+
+        // Toggle play/pause
+        function togglePlayPause() {
+            if (isLoading) return;
+            
+            if (!currentAudio && tracksList.length > 0) {
+                // Start playing first track
+                playTrack(0);
+                return;
+            }
+            
+            if (currentAudio) {
+                if (isPlaying) {
+                    currentAudio.pause();
+                    isPlaying = false;
+                } else {
+                    currentAudio.play()
+                        .catch(error => {
+                            console.error("Error playing audio:", error);
+                            alert("Playback failed. Try interacting with the page first.");
+                        });
+                    isPlaying = true;
+                }
                 updateUI();
             }
         }
 
-        // Update progress bar
-        function updateProgress() {
-            if (currentAudio && currentAudio.duration) {
-                const percentage = (currentAudio.currentTime / currentAudio.duration) * 100;
-                progressBar.style.width = `${percentage}%`;
-        
+        // Play next track
+        function playNext() {
+            if (isLoading || currentTrackIndex >= tracksList.length - 1) return;
+            playTrack(currentTrackIndex + 1);
+        }
+
+        // Play previous track
+        function playPrev() {
+            if (isLoading || currentTrackIndex <= 0) return;
+            playTrack(currentTrackIndex - 1);
+        }
+
+        // Seek to position
+        function seekTo(e) {
+            if (!currentAudio || !currentAudio.duration) return;
+            
+            const rect = progressContainer.getBoundingClientRect();
+            const pos = (e.clientX - rect.left) / rect.width;
+            
+            currentAudio.currentTime = pos * currentAudio.duration;
+        }
+
+        // Check online status
+        function updateOnlineStatus() {
+            if (navigator.onLine) {
+                connectionStatus.textContent = 'Online';
+                connectionStatus.classList.remove('offline');
+            } else {
+                connectionStatus.textContent = 'Offline - Using Cached Content';
+                connectionStatus.classList.add('offline');
+            }
+        }
+
+        // Set up event listeners
+        window.addEventListener('DOMContentLoaded', () => {
+            // Player control buttons
+            playPauseButton.addEventListener('click', togglePlayPause);
+            prevButton.addEventListener('click', playPrev);
+            nextButton.addEventListener('click', playNext);
+            progressContainer.addEventListener('click', seekTo);
+            
+            // Online status
+            window.addEventListener('online', updateOnlineStatus);
+            window.addEventListener('offline', updateOnlineStatus);
+            updateOnlineStatus();
+            
+            // Playlist items
+            document.querySelectorAll('.playlist-
